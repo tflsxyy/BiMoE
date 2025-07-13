@@ -1,0 +1,12 @@
+CUDA_VISIBLE_DEVICES=2 python main_block_ap.py \
+--model /projects/yanzhi_group/datasets/yanyue/deepseek-ai/DeepSeek-V2-Lite \
+--output_dir ./output/block_ap_log/DeepSeek-V2-Lite-w2g64-ae64 \
+--net Llama-2 \
+--wbits 2 \
+--group_size 64 \
+--quant_lr 1e-4 \
+--weight_lr 2e-5 \
+--real_quant \
+--eval_ppl \
+--eval_tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande \
+--save_quant_dir ./output/block_ap_models/DeepSeek-V2-Lite-w2g64-ae64

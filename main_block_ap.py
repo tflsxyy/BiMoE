@@ -94,6 +94,7 @@ def main():
     parser.add_argument("--max_memory", type=str, default="70GiB",help="The maximum memory of each GPU")
     parser.add_argument("--early_stop", type=int, default=0,help="early stoping after validation loss do not decrease")
     parser.add_argument("--off_load_to_disk", action="store_true", default=False, help="save training dataset to disk, saving CPU memory but may reduce training speed")
+    parser.add_argument("--mp", action="store_true", default=False, help="mixed precision: attn and shared expert 4-bit, other routed experts args.wbits")
 
     os.environ['TOKENIZERS_PARALLELISM'] = 'false'
     args = parser.parse_args()
@@ -119,13 +120,20 @@ def main():
         logger.info(f"net is None, setting as {args.net}")
     if args.resume_quant:
         # directly load quantized model for evaluation
-        model, tokenizer = load_quantized_model(args.resume_quant,args.wbits, args.group_size)
+        model, tokenizer = load_quantized_model(args.resume_quant,args.wbits, args.group_size, args.mp)
         logger.info(f"memory footprint after loading quantized model: {torch.cuda.max_memory_allocated('cuda') / 1024**3:.2f}GiB")
     else:
         # load fp quantized model
-        config = AutoConfig.from_pretrained(args.model)
-        tokenizer = AutoTokenizer.from_pretrained(args.model, use_fast=False,legacy=False)
-        model = AutoModelForCausalLM.from_pretrained(args.model, config=config, device_map='cpu',torch_dtype=torch.float16)
+        # config = AutoConfig.from_pretrained(args.model)
+        tokenizer = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True) #, use_fast=False,legacy=False)
+        model = AutoModelForCausalLM.from_pretrained(
+            args.model, 
+            trust_remote_code=True, 
+            device_map='cpu',
+            # num_hidden_layers=4,
+            torch_dtype=torch.float16, 
+            low_cpu_mem_usage=True
+        )
         for param in model.parameters():
             param.requires_grad = False
 

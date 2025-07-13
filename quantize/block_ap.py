@@ -42,6 +42,7 @@ def block_ap(
         logger.info("offload the training dataset to disk, saving CPU memory, but may slowdown the training due to additional I/O...")
     
     dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    logger.info(f"Using device: {dev}")
     use_cache = model.config.use_cache
     model.config.use_cache = False
     
@@ -74,7 +75,7 @@ def block_ap(
                                 model.config.hidden_size, args.batch_size, dtype, cache_path=fp_train_cache_path,off_load_to_disk=args.off_load_to_disk)
     fp_val_inps = BlockTrainDataset(args.val_size, args.training_seqlen, 
                                 model.config.hidden_size, args.batch_size, dtype, cache_path=fp_val_cache_path,off_load_to_disk=args.off_load_to_disk)
-    
+    logger.info(f"Loaded {len(fp_train_inps)} training samples and {len(fp_val_inps)} validation samples")
     # step 3: catch the input of thefirst layer 
     class Catcher(nn.Module):
         def __init__(self, module, dataset):
@@ -120,7 +121,10 @@ def block_ap(
     position_ids = layers[0].position_ids
     layers[0] = layers[0].module
     if attention_mask is not None:
-        attention_mask_batch = attention_mask.repeat(args.batch_size,1,1,1).float()
+        # attention_mask_batch = attention_mask.repeat(args.batch_size,1,1,1).float()
+        # fixed by ChatGPT:
+        attention_mask_batch = attention_mask.float()  # keep original batch-dim (already == args.batch_size)
+        position_ids = position_ids.expand(attention_mask_batch.size(0), -1)  # align pos-ids batch too
     else:
         logger.info(
             "No attention mask caught from the first layer."
@@ -165,7 +169,8 @@ def block_ap(
         qlayer = copy.deepcopy(layer)
         for name, module in qlayer.named_modules():
             if isinstance(module,torch.nn.Linear):
-                quantlinear = int_linear_fake.QuantLinear(module, args.wbits, args.group_size)
+                quantlinear = int_linear_fake.QuantLinear(module, 4 if args.mp and "mlp.experts" not in name else args.wbits, args.group_size)
+                logger.info(f"quantize {name} with {4 if args.mp and 'mlp.experts' not in name else args.wbits} bits")
                 set_op_by_name(qlayer, name, quantlinear)  
                 del module  
         qlayer.to(dev)
@@ -290,10 +295,10 @@ def block_ap(
                 dim0 = module.weight.shape[0]
                 scales = scales.view(dim0,-1).transpose(0,1).contiguous()
                 zeros = zeros.view(dim0,-1).transpose(0,1).contiguous()
-                q_linear = int_linear_real.QuantLinear(args.wbits, group_size, module.in_features,module.out_features,not module.bias is None)
+                q_linear = int_linear_real.QuantLinear(4 if args.mp and "mlp.experts" not in name else args.wbits, group_size, module.in_features,module.out_features,not module.bias is None)
                 q_linear.pack(module.cpu(),  scales.float().cpu(), zeros.float().cpu())
                 set_op_by_name(qlayer, name, q_linear)       
-                logger.info(f"pack quantized {name} finished")
+                logger.info(f"pack quantized {name} with {4 if args.mp and 'mlp.experts' not in name else args.wbits} bits finished")
                 del module        
         del layer
         torch.cuda.empty_cache()

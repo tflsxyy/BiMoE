@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --time=8:00:00
+#SBATCH --job-name=MyJobName
+#SBATCH --partition=gpu
+#SBATCH --gres=gpu:h200:1
+#SBATCH --mem=160G
+#SBATCH --cpus-per-task=32
+
+nvidia-smi
+echo $CUDA_VISIBLE_DEVICES
+cd /projects/yanzhi_group/datasets/yanyue/llm-quant/EfficientQAT/
+# bash examples/block_ap/DeepSeek-V2/w1g32mp-noes.sh > DeepSeek-V2-w1g32-mp-noearlystop-pluslidx-new.txt
+bash examples/block_ap/DeepSeek-V3/w1g64mp-noes.sh > DeepSeek-V3-w1g64-mp-noearlystop-new1.txt

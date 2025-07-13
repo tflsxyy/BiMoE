@@ -1,5 +1,5 @@
 CUDA_VISIBLE_DEVICES=0 python main_block_ap.py \
---model path/to/Llama-2-7b  \
+--model /projects/yanzhi_group/models/meta-llama/Llama-2-7b-hf \
 --output_dir ./output/block_ap_log/Llama-2-7b-w2g64 \
 --net Llama-2 \
 --wbits 2 \

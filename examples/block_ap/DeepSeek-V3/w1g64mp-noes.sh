@@ -1,0 +1,14 @@
+CUDA_VISIBLE_DEVICES=0 python3.11 main_block_ap.py \
+--model /scratch/xie.yany/deepseek-ai/DeepSeek-V3-0324-bf16 \
+--output_dir ./output/block_ap_log/DeepSeek-V3-w1g64-mp-noes \
+--net DeepSeek-V3 \
+--wbits 1 \
+--group_size 64 \
+--quant_lr 1e-4 \
+--weight_lr 2e-5 \
+--real_quant \
+--mp \
+--eval_ppl \
+--max_memory 140GiB \
+--eval_tasks piqa,arc_easy,arc_challenge,hellaswag,winogrande \
+--save_quant_dir ./output/block_ap_models/DeepSeek-V3-w1g64-mp-noes

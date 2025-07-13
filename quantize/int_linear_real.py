@@ -126,7 +126,7 @@ class QuantLinear(nn.Module, TritonModuleMixin):
         row = 0
         qweight = np.zeros((math.ceil(intweight.shape[0]/(32//self.bits)), intweight.shape[1]), dtype=np.uint32)
         while row < qweight.shape[0]:
-            if self.bits in [2, 3, 4, 8]:
+            if self.bits in [1, 2, 3, 4, 8]:
                 for j in range(i, min(i + (32 // self.bits), intweight.shape[0])):
                     qweight[row] |= intweight[j] << (self.bits * (j - i))
                 i += 32 // self.bits
@@ -143,7 +143,7 @@ class QuantLinear(nn.Module, TritonModuleMixin):
         i = 0
         col = 0
         while col < qzeros.shape[1]:
-            if self.bits in [2, 3, 4, 8]:
+            if self.bits in [1, 2, 3, 4, 8]:
                 for j in range(i, min(i + (32 // self.bits), zeros.shape[1])):
                     qzeros[:, col] |= zeros[:, j] << (self.bits * (j - i))
                 i += 32 // self.bits
@@ -171,20 +171,21 @@ class QuantLinear(nn.Module, TritonModuleMixin):
         return out
 
 
-def load_quantized_model(model_path, wbits, group_size):
+def load_quantized_model(model_path, wbits, group_size, mp=False):
     print(f"Loading quantized model from {model_path}")
 
     # import pdb;pdb.set_trace()
-    tokenizer = AutoTokenizer.from_pretrained(model_path, use_fast=False)
-    config = AutoConfig.from_pretrained(model_path)
+    tokenizer = AutoTokenizer.from_pretrained(model_path, trust_remote_code=True) # use_fast=False)
+    # config = AutoConfig.from_pretrained(model_path)
     with init_empty_weights():
-        model = AutoModelForCausalLM.from_config(config=config,torch_dtype=torch.float16, trust_remote_code=True)
+        # model = AutoModelForCausalLM.from_config(config=config,torch_dtype=torch.float16, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(model_path, trust_remote_code=True, torch_dtype=torch.float16)
     layers = model.model.layers
     for i in tqdm(range(len(layers))):
         layer = layers[i]
         named_linears = get_named_linears(layer, torch.nn.Linear)
         for name, module in named_linears.items():
-            q_linear = QuantLinear(wbits, group_size, module.in_features,module.out_features,not module.bias is None)
+            q_linear = QuantLinear(4 if mp and "mlp.experts" not in name else wbits, group_size, module.in_features,module.out_features,not module.bias is None)
             q_linear.to(next(layer.parameters()).device)
             set_op_by_name(layer, name, q_linear)
     torch.cuda.empty_cache()

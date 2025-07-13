@@ -1,3 +1,43 @@
+# BiMoE: Binarized Mixture-of-Experts for DeepSeek Quantization
+
+## Environment Setup
+
+Clone this repo:
+```bash
+git clone https://github.com/tflsxyy/BiMoE.git
+cd BiMoE
+```
+
+Install packages:
+```bash
+conda create -n bimoe python==3.11
+conda activate bimoe
+pip install -r requirements.txt
+```
+
+## Quantization and Evaluation
+
+Run layer-wise Quantization-Aware Training (QAT) for DeepSeek models:
+```bash
+bash examples/block_ap/DeepSeek-V3/w1g64mp-noes.sh
+```
+
+We add '--mp' to indicate mixed-precision that attention modules and shared experts are quantized to 4-bit to preserve performance, all routed experts are quantized to 1-bit. Remaining layernorm and router weights are kept in 16-bit.
+
+Required GPU RAM for running DeepSeek MoE models:
+- [DeepSeek-V2-Lite](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite) (16B) GPU RAM > 16GB.
+- [DeepSeek-V2](https://huggingface.co/deepseek-ai/DeepSeek-V2.5-1210) (236B) GPU RAM > 60GB.
+- [DeepSeek-V3](https://huggingface.co/deepseek-ai/DeepSeek-V3-0324) (671B) GPU RAM > 120GB.
+
+Run evaluation for saved quantized models:
+```bash
+bash examples/inference/DeepSeek-V3/w1g64.sh
+```
+
+This repo is inspired and built upon [EfficientQAT](https://arxiv.org/abs/2407.11062), below is the original README file of EfficientQAT.
+
+---
+
 # EfficientQAT
 Official PyTorch implement of paper [EfficientQAT: Efficient Quantization-Aware Training for Large Language Models](https://arxiv.org/abs/2407.11062)
 

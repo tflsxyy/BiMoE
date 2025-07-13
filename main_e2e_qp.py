@@ -278,12 +278,17 @@ def get_accelerate_model(args, checkpoint_dir):
         # Note that these are present in the vocabulary.
         # Note also that `model.config.pad_token_id` is 0 which corresponds to `<unk>` token.
         print('Adding special tokens.')
+        
+        # Set unk_token_id and pad_token_id to 0 if not already set
+        if not hasattr(model.config, 'unk_token_id') or model.config.unk_token_id is None:
+            model.config.unk_token_id = 0
+        if not hasattr(model.config, 'pad_token_id') or model.config.pad_token_id is None or model.config.pad_token_id == -1:
+            model.config.pad_token_id = 0
+        
         tokenizer.add_special_tokens({
                 "eos_token": tokenizer.convert_ids_to_tokens(model.config.eos_token_id),
                 "bos_token": tokenizer.convert_ids_to_tokens(model.config.bos_token_id),
-                "unk_token": tokenizer.convert_ids_to_tokens(
-                    model.config.pad_token_id if model.config.pad_token_id != -1 else tokenizer.pad_token_id
-                ),
+                "unk_token": tokenizer.convert_ids_to_tokens(model.config.unk_token_id),
         })
 
 
