@@ -115,8 +115,10 @@ def dequant_kernel_dim0(
 
     b = tl.load(b_ptrs)
     b = (b >> shifter) & maxq
-  
-    c = b
+    if bits == 1:
+        c = 2 * b - 1
+    else:
+        c = b
 
     c_ptrs = c_ptr + stride_cm * offs_am[:, None] + stride_cn * offs_bn[None, :]
     c_mask = (offs_am[:, None] < M) & (offs_bn[None, :] < N)
@@ -203,8 +205,10 @@ def dequant_kernel_dim1(
 
     b = tl.load(b_ptrs)
     b = (b >> shifter) & maxq
-  
-    c = b
+    if bits == 1:
+        c = 2 * b - 1
+    else:
+        c = b
 
     c_ptrs = c_ptr + stride_cm * offs_am[:, None] + stride_cn * offs_bn[None, :]
     c_mask = (offs_am[:, None] < M) & (offs_bn[None, :] < N)

@@ -290,7 +290,10 @@ def block_ap(
             named_linears = get_named_linears(qlayer, int_linear_fake.QuantLinear)
             for name, module in named_linears.items():
                 scales = module.weight_quantizer.scale.clamp(1e-4,1e4).detach()
-                zeros = module.weight_quantizer.zero_point.detach().cuda().round().cpu()
+                if module.weight_quantizer.n_bits == 1:
+                    zeros = module.weight_quantizer.zero_point.detach().cuda().sign().cpu() # changed for real 1-bit
+                else:
+                    zeros = module.weight_quantizer.zero_point.detach().cuda().round().cpu()
                 group_size = module.weight_quantizer.group_size
                 dim0 = module.weight.shape[0]
                 scales = scales.view(dim0,-1).transpose(0,1).contiguous()

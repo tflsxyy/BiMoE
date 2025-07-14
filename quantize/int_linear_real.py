@@ -111,13 +111,22 @@ class QuantLinear(nn.Module, TritonModuleMixin):
             self.bias = linear.bias.clone().half()
 
         intweight = []
-        for idx in range(self.infeatures):
-            intweight.append(
-                torch.round(
-                    (
-                        W[:, idx] + scale_zeros[g_idx[idx]]) / self.scales[g_idx[idx]]
-                ).to(torch.int)[:, None]
-            )
+        if self.bits == 1:    
+            for idx in range(self.infeatures):
+                intweight.append(
+                    torch.sign(
+                        (
+                            W[:, idx] + scale_zeros[g_idx[idx]]) / self.scales[g_idx[idx]]
+                    ).to(torch.int)[:, None]
+                )
+        else:
+            for idx in range(self.infeatures):
+                intweight.append(
+                    torch.round(
+                        (
+                            W[:, idx] + scale_zeros[g_idx[idx]]) / self.scales[g_idx[idx]]
+                    ).clamp(0, 1).to(torch.int)[:, None] # clamp help store -1 to 0
+                )
         intweight = torch.cat(intweight, dim=1)
         intweight = intweight.t().contiguous()
         intweight = intweight.numpy().astype(np.uint32)
@@ -132,11 +141,13 @@ class QuantLinear(nn.Module, TritonModuleMixin):
                 i += 32 // self.bits
                 row += 1
             else:
-                raise NotImplementedError("Only 2,3,4,8 bits are supported.")
+                raise NotImplementedError("Only 1,2,3,4,8 bits are supported.")
 
         qweight = qweight.astype(np.int32)
         self.qweight = torch.from_numpy(qweight)
 
+        if self.bits == 1:
+            zeros = zeros.clamp(0, 1) # clamp help store -1 to 0
         zeros = zeros.numpy().astype(np.uint32)
         self.zeros_dim0, self.zeros_dim1 = zeros.shape
         qzeros = np.zeros((zeros.shape[0], math.ceil(zeros.shape[1] / (32 // self.bits))), dtype=np.uint32)
@@ -149,7 +160,7 @@ class QuantLinear(nn.Module, TritonModuleMixin):
                 i += 32 // self.bits
                 col += 1
             else:
-                raise NotImplementedError("Only 2,3,4,8 bits are supported.")
+                raise NotImplementedError("Only 1,2,3,4,8 bits are supported.")
                 
         qzeros = qzeros.astype(np.int32)
         self.qzeros = torch.from_numpy(qzeros)
